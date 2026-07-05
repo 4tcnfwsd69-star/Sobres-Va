@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sobres — Presupuesto simple</title>
+<style>
+:root{--ink:#1B2733;--bg:#F5F3EE;--card:#FFFFFF;--line:#E4E0D6;--acc:#0E7C5B;--warn:#C98A12;--bad:#C0442E;--mut:#8A8578}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;padding-bottom:24px}
+header{background:var(--ink);color:#fff;padding:14px 16px}
+header h1{font-size:18px;font-weight:700}
+header p{font-size:12px;color:#A9B4BE;margin-top:2px}
+main{max-width:560px;margin:0 auto;padding:12px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+h2{font-size:14px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.mes{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mes b{font-size:16px;text-transform:capitalize}
+.mes button{width:34px;height:34px;font-size:16px}
+button{font:inherit;font-weight:600;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+button.p{background:var(--ink);color:#fff}
+button.x{border:none;background:none;color:var(--mut);padding:2px 6px;font-size:15px}
+input,select{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--ink)}
+label{font-size:11px;font-weight:700;color:var(--mut);display:block;margin:8px 0 3px;text-transform:uppercase}
+.fila{display:flex;gap:8px}
+.fila>*{flex:1}
+.num{font-variant-numeric:tabular-nums;font-weight:700}
+.verde{color:var(--acc)}.rojo{color:var(--bad)}.ambar{color:var(--warn)}
+.tot{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.tot:last-child{border:none}
+.sobre{padding:10px 0;border-bottom:1px solid var(--line)}
+.sobre:last-child{border:none}
+.sobre .top{display:flex;justify-content:space-between;align-items:center}
+.sobre .nom{font-weight:700}
+.sobre .sub{font-size:12px;color:var(--mut);margin-top:2px}
+.barra{height:8px;background:#ECE8DD;border-radius:4px;margin-top:6px;overflow:hidden}
+.barra div{height:100%;background:var(--acc)}
+.barra.a div{background:var(--warn)}
+.barra.r div{background:var(--bad)}
+.mov{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.mov small{color:var(--mut)}
+.vacio{color:var(--mut);text-align:center;padding:14px;font-size:13px}
+details summary{font-size:13px;font-weight:700;color:var(--mut);cursor:pointer;padding:4px 0}
+.aviso{font-size:12px;color:var(--mut);margin-top:8px}
+#msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sobres</h1>
+  <p>Tu dinero, en sobres. Simple y sin internet.</p>
+</header>
+<main>
+
+<div class="mes">
+  <button onclick="mv(-1)">‹</button>
+  <b id="mesLbl"></b>
+  <button onclick="mv(1)">›</button>
+</div>
+
+<div class="c">
+  <h2>Resumen del mes</h2>
+  <div class="tot"><span>Ingreso</span><span class="num" id="rIng"></span></div>
+  <div class="tot"><span>Presupuestado</span><span class="num" id="rPre"></span></div>
+  <div class="tot"><span>Gastado</span><span class="num" id="rGas"></span></div>
+  <div class="tot"><span><b>Disponible del ingreso</b></span><span class="num" id="rDis"></span></div>
+</div>
+
+<div class="c">
+  <h2>Registrar gasto</h2>
+  <div class="fila">
+    <input type="number" id="gMonto" placeholder="Monto" inputmode="decimal">
+    <select id="gCat"></select>
+  </div>
+  <div class="fila" style="margin-top:8px">
+    <input type="text" id="gNota" placeholder="Nota (opcional)">
+    <button class="p" style="flex:0 0 auto" onclick="addGasto()">Registrar</button>
+  </div>
+</div>
+
+<div class="c">
+  <h2>Sobres (categorías)</h2>
+  <div id="sobres"></div>
+  <details style="margin-top:8px">
+    <summary>＋ Agregar sobre</summary>
+    <div class="fila" style="margin-top:8px">
+      <input type="text" id="nNom" placeholder="Nombre (ej. Comida)">
+      <input type="number" id="nPre" placeholder="Presupuesto" inputmode="decimal">
+    </div>
+    <button style="margin-top:8px" onclick="addSobre()">Agregar</button>
+  </details>
+</div>
+
+<div class="c">
+  <details>
+    <summary id="movLbl">Movimientos del mes</summary>
+    <div id="movs"></div>
+  </details>
+</div>
+
+<div class="c">
+  <details>
+    <summary>Ajustes y respaldo</summary>
+    <label>Ingreso mensual</label>
+    <input type="number" id="aIng" inputmode="decimal" onchange="D.ing=+this.value||0;sv();rd()">
+    <label>Símbolo de moneda</label>
+    <input type="text" id="aMon" onchange="D.mon=this.value;sv();rd()">
+    <div class="fila" style="margin-top:12px">
+      <button onclick="expo()">Exportar respaldo</button>
+      <button onclick="document.getElementById('impF').click()">Importar</button>
+    </div>
+    <input type="file" id="impF" accept=".json" style="display:none" onchange="impo(this)">
+    <button style="margin-top:8px;color:var(--bad);border-color:var(--bad)" onclick="reset()">Borrar todo</button>
+    <p class="aviso"><b>Para compartir la app:</b> envía este archivo por WhatsApp o correo. Quien lo reciba lo abre en su navegador y empieza con sus propios datos. Todo se guarda solo en cada teléfono, sin internet.</p>
+  </details>
+</div>
+
+</main>
+<div id="msg"></div>
+
+<script>
+var K='sobres-v1', D, mes=ym(new Date());
+function ym(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)}
+function addM(s,k){var p=s.split('-'),y=+p[0],m=+p[1]+k;y+=Math.floor((m-1)/12);m=((m-1)%12+12)%12+1;return y+'-'+('0'+m).slice(-2)}
+function nomMes(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,1).toLocaleDateString('es-MX',{month:'long',year:'numeric'})}
+try{D=JSON.parse(localStorage.getItem(K))}catch(e){}
+if(!D)D={mon:'$',ing:0,cats:[{i:1,n:'Comida',p:0},{i:2,n:'Transporte',p:0},{i:3,n:'Hogar',p:0}],g:{}};
+function sv(){try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}}
+function f(n){return D.mon+(+n).toLocaleString('es-MX',{maximumFractionDigits:0})}
+function gm(){return D.g[mes]||[]}
+function gastCat(ci){var t=0,l=gm();for(var i=0;i<l.length;i++)if(l[i].c===ci)t+=+l[i].m;return t}
+function toast(t){var m=document.getElementById('msg');m.textContent=t;m.style.display='block';setTimeout(function(){m.style.display='none'},1500)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return'&#'+c.charCodeAt(0)+';'})}
+
+function mv(k){mes=addM(mes,k);rd()}
+function addSobre(){
+  var n=document.getElementById('nNom').value.trim(),p=+document.getElementById('nPre').value||0;
+  if(!n){toast('Escribe un nombre');return}
+  D.cats.push({i:Date.now(),n:n,p:p});
+  document.getElementById('nNom').value='';document.getElementById('nPre').value='';
+  sv();rd();toast('Sobre creado')
+}
+function updSobre(i,c,v){for(var j=0;j<D.cats.length;j++)if(D.cats[j].i===i)D.cats[j][c]=c==='p'?+v||0:v;sv();rd()}
+function delSobre(i){if(confirm('¿Borrar este sobre? Sus gastos quedan en el historial.')){D.cats=D.cats.filter(function(c){return c.i!==i});sv();rd()}}
+function addGasto(){
+  var m=+document.getElementById('gMonto').value,c=+document.getElementById('gCat').value;
+  if(!m||m<=0){toast('Escribe un monto');return}
+  if(!c){toast('Crea un sobre primero');return}
+  if(!D.g[mes])D.g[mes]=[];
+  D.g[mes].push({x:Date.now(),m:m,c:c,n:document.getElementById('gNota').value.trim(),d:new Date().getDate()});
+  document.getElementById('gMonto').value='';document.getElementById('gNota').value='';
+  sv();rd();toast('Gasto registrado')
+}
+function delGasto(x){D.g[mes]=gm().filter(function(e){return e.x!==x});sv();rd()}
+function expo(){
+  var a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify(D));
+  a.download='sobres-respaldo.json';a.click()
+}
+function impo(inp){
+  var fl=inp.files[0];if(!fl)return;
+  var r=new FileReader();
+  r.onload=function(){try{D=JSON.parse(r.result);sv();rd();toast('Respaldo importado')}catch(e){toast('Archivo no válido')}};
+  r.readAsText(fl)
+}
+function reset(){if(confirm('¿Borrar todos los datos?')){D={mon:'$',ing:0,cats:[],g:{}};sv();rd()}}
+
+function rd(){
+  document.getElementById('mesLbl').textContent=nomMes(mes);
+  var pre=0,gas=0,i;
+  for(i=0;i<D.cats.length;i++)pre+=+D.cats[i].p;
+  var l=gm();for(i=0;i<l.length;i++)gas+=+l[i].m;
+  var dis=D.ing-gas;
+  document.getElementById('rIng').textContent=f(D.ing);
+  document.getElementById('rPre').textContent=f(pre);
+  document.getElementById('rGas').textContent=f(gas);
+  var rd2=document.getElementById('rDis');
+  rd2.textContent=f(dis);rd2.className='num '+(dis<0?'rojo':'verde');
+
+  var sel=document.getElementById('gCat'),h='';
+  for(i=0;i<D.cats.length;i++)h+='<option value="'+D.cats[i].i+'">'+esc(D.cats[i].n)+'</option>';
+  sel.innerHTML=h||'<option value="">Sin sobres</option>';
+
+  h='';
+  for(i=0;i<D.cats.length;i++){
+    var c=D.cats[i],g=gastCat(c.i),r=c.p-g,pc=c.p>0?g/c.p*100:0;
+    h+='<div class="sobre"><div class="top"><span class="nom">'+esc(c.n)+'</span>'+
+       '<span><span class="num '+(r<0?'rojo':pc>80?'ambar':'verde')+'">'+f(g)+'</span> <small style="color:var(--mut)">/ '+f(c.p)+'</small>'+
+       ' <button class="x" onclick="editS('+c.i+')">✎</button><button class="x" onclick="delSobre('+c.i+')">✕</button></span></div>'+
+       '<div class="sub">'+(r>=0?'Quedan '+f(r):'Excedido por '+f(-r))+'</div>'+
+       '<div class="barra'+(pc>100?' r':pc>80?' a':'')+'"><div style="width:'+Math.min(pc,100)+'%"></div></div></div>';
+  }
+  document.getElementById('sobres').innerHTML=h||'<div class="vacio">Crea tu primer sobre abajo. Un sobre = una categoría con su límite.</div>';
+
+  document.getElementById('movLbl').textContent='Movimientos del mes ('+l.length+')';
+  h='';
+  for(i=l.length-1;i>=0;i--){
+    var e=l[i],cn='?';
+    for(var j=0;j<D.cats.length;j++)if(D.cats[j].i===e.c)cn=D.cats[j].n;
+    h+='<div class="mov"><span>'+esc(cn)+(e.n?' · '+esc(e.n):'')+' <small>día '+e.d+'</small></span>'+
+       '<span><b class="num">'+f(e.m)+'</b> <button class="x" onclick="delGasto('+e.x+')">✕</button></span></div>';
+  }
+  document.getElementById('movs').innerHTML=h||'<div class="vacio">Sin movimientos este mes.</div>';
+
+  document.getElementById('aIng').value=D.ing;
+  document.getElementById('aMon').value=D.mon;
+}
+function editS(i){
+  var c;for(var j=0;j<D.cats.length;j++)if(D.cats[j].i===i)c=D.cats[j];
+  var n=prompt('Nombre del sobre:',c.n);if(n===null)return;
+  var p=prompt('Presupuesto mensual:',c.p);if(p===null)return;
+  if(n.trim())c.n=n.trim();c.p=+p||0;sv();rd();
+}
+rd();
+</script>
+</body>
+</html>
